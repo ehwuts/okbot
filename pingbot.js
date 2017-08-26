@@ -12,10 +12,10 @@ discord.on("ready", () => {
 
 discord.on("messageCreate", (msg) => {
 	if (msg.channel.id === config.discord_channel && msg.author.id != discord.user.id) {
-		if (msg.content.toLowerCase.indexOf("ping") !== -1) {
+		if (msg.content.toLowerCase().indexOf("ping") !== -1) {
 			discord.createMessage(msg.channel.id, "Ping!");
 		}
-		if (msg.content.toLowerCase.indexOf("pong") !== -1) {
+		if (msg.content.toLowerCase().indexOf("pong") !== -1) {
 			var d = new Date();
 			if (d.getTime() - lastpong > sadtimeout) {
 				discord.createMessage(msg.channel.id, "Ping..");
