@@ -1,4 +1,4 @@
-const config = require("./srchat-config.js");
+const config = require("./pingbot-config.js");
 
 const Eris = require("eris");
 
