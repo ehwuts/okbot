@@ -3,6 +3,8 @@ const config = require("./pingbot-config.js");
 const Eris = require("eris");
 
 var discord = new Eris(config.discord_token);
+var lastpong = 0;
+var sadtimeout = 30000;
 
 discord.on("ready", () => {
 	console.log(":Pingbot online.");
@@ -14,7 +16,13 @@ discord.on("messageCreate", (msg) => {
 			discord.createMessage(msg.channel.id, "Ping!");
 		}
 		if (msg.content.toLowerCase.indexOf("pong") !== -1) {
-			discord.createMessage(msg.channel.id, "Ping..");
+			var d = new Date();
+			if (d.getTime() - lastpong > sadtimeout) {
+				discord.createMessage(msg.channel.id, "Ping..");
+			} else {
+				discord.createMessage(msg.channel.id, "Ping. :(");
+			}
+			lastpong = d.getTime();
 		}
 	}
 });
