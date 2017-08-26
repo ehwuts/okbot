@@ -1,0 +1,6 @@
+var config = {};
+
+config.discord_token = "";
+config.discord_channel = "";
+
+module.exports = config;
