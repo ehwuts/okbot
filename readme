@@ -1,0 +1,7 @@
+simple discord bot that does some stuff
+
+dependencies:
+	eris
+
+license:
+	The Unlicense

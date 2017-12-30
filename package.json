@@ -1,0 +1,24 @@
+{
+  "name": "okbot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "it's a bot that's ok",
+  "main": "okbot.js",
+  "dependencies": {
+    "eris": "^0.8.1",
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ehwuts/okbot.git"
+  },
+  "author": "ehwuts",
+  "license": "Unlicense",
+  "bugs": {
+    "url": "https://github.com/ehwuts/okbot/issues"
+  },
+  "homepage": "https://github.com/ehwuts/okbot#readme"
+}
