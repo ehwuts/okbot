@@ -1,6 +1,11 @@
 var config = {};
 
 config.discord_token = "";
-config.discord_channel = "";
+
+config.discord_bindings = {
+	"##" : {
+		"modules" : []
+	}
+};
 
 module.exports = config;
