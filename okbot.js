@@ -3,11 +3,14 @@ const config = require("./okbot-config.js");
 const Eris = require("eris");
 
 var discord = new Eris(config.discord_token);
+var convert = require('convert-units');
 
 /* - */
 /* Begin Logic Things */
 /* - */
 var regex_cmd = /^!([a-z]+)(?: |$)/i;
+
+// TODO - Split modules into actually separate files
 
 /* begin ping/pong responses */
 var pingpong = {
@@ -80,71 +83,69 @@ var diceroller = {
 
 /* begin unit conversion */
 // TODO: maybe convert this entire module into a wrapper for https://www.npmjs.com/package/convert-units
-// TODO: currency conversions via web call to https://finance.google.com/finance/converter?a=12&from=USD&to=GBP
-var converter = {
-	commands : ["convert", "c"],
-	matcher : /^!(?:c|convert) ([-]?[\d.]+) ?(°c|c|°f|f|k|"|in|inches|cm|centimeters|'|ft|feet|mi|miles|km|kilometers|yd|yards|m|meters|yen|euro|usd|gpb|cad)( [^\w]+)?$/,
-	precisionRound : function (v, p=2.0) {
-		adj = Math.log10(v)+1;
-		if (adj < 1) adj = 1;
-		return (new Number(v)).toFixed(p);
-	},
-	respond : function (cmd, msg) {
-		var match = msg.content.toLowerCase().match(this.matcher);
-		var count = (match!==null?Number(match[1]) * 1.0:0.0);
-		var unit = (match!==null?match[2]:"error");
-		switch (unit) {
-			case "°c":
-			case "c":
-				discord.createMessage(msg.channel.id, this.precisionRound(count) + "°C : " + this.precisionRound(count+273.15,2) + "K : " + this.precisionRound(count*1.8+32.0) + "°F");
-				break;
-			case "°f":
-			case "f":
-				discord.createMessage(msg.channel.id, this.precisionRound(count) + "°F : " + this.precisionRound((count-32.0)* 0.5 / 0.9) + "°C : " + this.precisionRound((count-32.0)* 0.5 / 0.9 + 273.15) + "K");
-				break;
-			case "k":
-				discord.createMessage(msg.channel.id, this.precisionRound(count) + "K : " + this.precisionRound(count-273.15) + "°C : " + this.precisionRound((count-273.15)*1.8+32.0) + "°F");
-				break;
-			case "\"":
-			case "in":
-			case "inches":
-				discord.createMessage(msg.channel.id, this.precisionRound(count) + " inches : " + this.precisionRound(count/12.0) + " feet : " + this.precisionRound(count*2.54) + " centimeters");
-				break;
-			case "cm":
-			case "centimeters":
-				discord.createMessage(msg.channel.id, this.precisionRound(count) + " centimeters : " + this.precisionRound(count/2.54) + " inches : " + this.precisionRound(count/2.54/12.0) + " feet");
-				break;
-			case "'":
-			case "ft":
-			case "feet":
-				discord.createMessage(msg.channel.id, this.precisionRound(count) + " feet : " +this.precisionRound(count * 12.0) + " inches : " + this.precisionRound(count / 3.0) + " yards : " + this.precisionRound(count * 12.0 * 2.54) + " centimeters : " + this.precisionRound(count * 12.0 * 2.54 / 100.0) + " meters");
-				break;
-			case "yd":
-			case "yards":
-				discord.createMessage(msg.channel.id, this.precisionRound(count) + " yards : " + this.precisionRound(count * 3.0) + " feet : " + this.precisionRound(count * 0.9144) + " meters");
-				break;
-			case "m":
-			case "meters":
-				discord.createMessage(msg.channel.id, this.precisionRound(count) + " meters : " + this.precisionRound(count * 25.0 / 7.62) + " feet : " + this.precisionRound(count / 0.9144) + " yards");
-				break;
-			case "mi":
-			case "miles":
-				discord.createMessage(msg.channel.id, this.precisionRound(count) + " miles : " + this.precisionRound(count * 1.609344) + " kilometers");
-				break;
-			case "km":
-			case "kilometers":
-				discord.createMessage(msg.channel.id, this.precisionRound(count) + " kilometers : " + this.precisionRound(count / 1.609344) + " miles");
-				break;
-			case "yen":
-			case "eur":
-			case "usd":
-			case "gpb":
-			case "cad":			
-			default:
-				discord.createMessage(msg.channel.id, "Unknown unit. Recognized list is: °C|C|°F|F|K|\"|in|inches|cm|centimeters|'|ft|feet|mi|miles|km|kilometers|yd|yards|m|meters");
-		}
+// TODO: currency conversions via web call to https://finance.google.com/finance/converter?a=12&from=USD&to=GBP (or not since that link died)
+var converter = (function(){
+	var commands = ["convert", "c"];
+	
+	/*
+	This rounding function is by Mozilla Contributors is licensed under CC-BY-SA 2.5
+	https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/round#A_better_solution
+	*/
+	function round(number, precision) {
+		var shift = function (number, precision, reverseShift) {
+			if (reverseShift) {
+				precision = -precision;
+			}  
+			numArray = ("" + number).split("e");
+			return +(numArray[0] + "e" + (numArray[1] ? (+numArray[1] + precision) : precision));
+		};
+		return shift(Math.round(shift(number, precision, false)), precision, true);
 	}
-};
+	
+	var matcher = /^!(?:c|convert) ([-]?[\d]+(?:[,\.][\d]+)?|measures|possible) *([^ ]+)?(?: +([^ ]+))?$/;
+	function respond (cmd, msg) {
+		var match = msg.content.match(matcher);
+		var result = "";
+		
+		try {
+			if (match !== null && (match[1] == "measures" || match[1] == "possible")) {
+				if (match[2] == null) {
+					result = "Available categories of measurement are [" + convert().measures().join(", ") + "]";
+				} else {
+					if (convert().measures().includes(match[2])) {
+						result = "Supported units of " + match[2] + " are [" + convert().possibilities(match[2]).join(", ") + "]";
+					} else {
+						result = "Unsupported category. Available categories of measurement are ["  + convert().measures().join(", ") + "]";
+					}					
+				}
+			} else if (match === null || typeof match[1] == "undefined" || isNaN(match[1] = parseFloat(match[1].replace(",",".")))) {
+				result = "Usage: !convert # sourceUnit destUnit | !convert measures | !convert possible <measure>";
+			} else {
+				if (convert().possibilities().includes(match[2])) {
+					if (convert().from(match[2]).possibilities().includes(match[3])) {
+						result = round(match[1], 2) + " " + convert().describe(match[2]).plural + " | " + round(convert(match[1]).from(match[2]).to(match[3]), 2) + " " + convert().describe(match[3]).plural + " | possible [" + convert().possibilities(convert().describe(match[2]).measure).join(", ") + "]";
+					} else {
+						let measure = convert().describe(match[2]).measure;
+						if (match[3] === undefined) {
+							let best = convert(match[1]).from(match[2]).toBest({ exclude: [match[2]] });
+							result = round(match[1], 2) + " " + convert().describe(match[2]).plural + " | " + round(best.val, 2) + " " + best.plural + " | auto from [" + convert().possibilities(measure).join(", ") + "]";
+						} else {
+							result = "Incompatible conversion. Supported units of " + measure + " are [" + convert().possibilities(measure).join(", ") + "]";
+						}
+					}
+				} else {
+					result = "Unsupported unit - " + match[2];
+				}
+			}
+		} catch (e) {
+			result = e.message;
+		}
+		
+		discord.createMessage(msg.channel.id, result);
+	}
+	
+	return {"commands": commands, "respond": respond};
+})();
 /* end unit conversion */
 
 /* begin module registration */

@@ -5,7 +5,8 @@
   "description": "it's a bot that's ok",
   "main": "okbot.js",
   "dependencies": {
-    "eris": "^0.8.1",
+    "convert-units": "^2.3.4",
+    "eris": "^0.8.1"
   },
   "devDependencies": {},
   "scripts": {
