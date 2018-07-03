@@ -4,25 +4,34 @@ const Eris = require("eris");
 
 var discord = new Eris(config.discord_token);
 
-/* - */
-/* Begin Logic Things */
-/* - */
-var regex_cmd = /^!([a-z]+)(?: |$)/i;
+/* Begin Module Registration */
+var regex_strip_module = /[\/\\\.]/;
 
-/* begin module includes */
-var pingpong = require('./bot_modules/pingpong');
-var diceroller = require('./bot_modules/diceroller');
-var converter = require('./bot_modules/converter');
-/* end module includes */
-
-/* begin module registration */
+function loadModule(module) {
+	try {
+		return require('./bot_modules/' + module.replace(regex_strip_module, ""));
+	} catch (e) {
+		return false;
+	}
+}
 
 var command_handlers = {};
-var modules = {
-	"pingpong" : pingpong,
-	"diceroller" : diceroller,
-	"converter" : converter,
-};
+var modules = {};
+for (let prop in config.discord_bindings) {
+	if (config.discord_bindings.hasOwnProperty(prop)) {
+		for (let i = 0; i < config.discord_bindings[prop].modules.length; i++) {
+			let m = config.discord_bindings[prop].modules[i];
+			if (modules[m] === undefined) {
+				mm = loadModule(m);
+				if (mm) {
+					modules[m] = mm;
+				} else {
+					console.log("Warning: Unknown module \"" + m + "\" requested by " + prop + ".");
+				}
+			}
+		}
+	}
+}
 for (let prop in modules) {
 	if (modules.hasOwnProperty(prop)) {
 		for (let i = 0; i < modules[prop].commands.length; i++) {
@@ -33,28 +42,16 @@ for (let prop in modules) {
 		}
 	}
 }
-for (let prop in config.discord_bindings) {
-	if (config.discord_bindings.hasOwnProperty(prop)) {
-		for (let i = 0; i < config.discord_bindings[prop].modules.length; i++) {
-			if (modules[config.discord_bindings[prop].modules[i]] === undefined) {
-				console.log("Warning: Unknown module \"" + config.discord_bindings[prop].modules[i] + "\" requested by " + prop + ".");
-			}
-		}
-	}
-}
 
 var responseFunc = (id, txt) => {
 	discord.createMessage(id, txt);
 };
 
-/* end module registration */
-
-/* - */
-/* End Logic Things */
-/* - */
-
+/* End Module Registration */
 
 /* Discord Event Handler Registry */
+var regex_cmd = /^!([a-z]+)(?: |$)/i;
+
 discord.on("ready", () => {
 	console.log(":okbot online.");
 });
