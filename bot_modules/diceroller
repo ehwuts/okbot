@@ -1,0 +1,47 @@
+
+var diceroller = {
+	commands : ["r", "roll"],
+	rollmatcher : /^!r(?:oll)? ([0-9]*)d([0-9]+)(?: *(\+|\-) *([0-9]+))?/,
+	sadrandint : function (min, max) {
+		return Math.floor(Math.random() * (max - min)) + min;
+	},
+	cmp : function (a, b) {
+		if (a < b) return -1;
+		else return 1;
+	},
+	respond : function (cmd, msg, responseFunc) {
+		var match = msg.content.toLowerCase().match(this.rollmatcher);
+		if (match !== null) {
+			var count = (match[1]?match[1]:1)|0;
+			var size = match[2]|0;
+			var offset = (match[4]?match[4]:0)|0;
+			if (match[3] === "-") offset = 0 - offset;
+			var results = [];
+			
+			if (count > 50) {
+				results.push = (v) => {};
+				results.join = (v) => { return "<lots>"; };
+				results.sort = (v) => {};
+			}
+			
+			var result = 0;
+			var i = 0;
+			while (i < count) {
+				var j = this.sadrandint(1, size + 1);
+				result += j;
+				results.push(j);
+				
+				++i;
+			}
+			
+			result += offset;
+			results.sort(this.cmp);
+			
+			var outstring = "Rolled **" + result + "** for " + msg.author.username;
+			outstring += " (" + count + "d" + size + (offset!==0?(offset < 0?"":"+")+offset:"") + ": " + results.join(",") + ")";
+			responseFunc(msg.channel.id, outstring);
+		}
+	}
+};
+
+module.exports = diceroller;

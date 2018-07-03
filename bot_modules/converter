@@ -1,0 +1,66 @@
+var convert = require('convert-units');
+// TODO: maybe convert this entire module into a wrapper for https://www.npmjs.com/package/convert-units
+// TODO: currency conversions via web call to https://finance.google.com/finance/converter?a=12&from=USD&to=GBP (or not since that link died)
+var converter = (function(){
+	var commands = ["convert", "c"];
+	
+	/*
+	This rounding function is by Mozilla Contributors is licensed under CC-BY-SA 2.5
+	https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/round#A_better_solution
+	*/
+	function round(number, precision, messageFunc) {
+		var shift = function (number, precision, reverseShift) {
+			if (reverseShift) {
+				precision = -precision;
+			}  
+			numArray = ("" + number).split("e");
+			return +(numArray[0] + "e" + (numArray[1] ? (+numArray[1] + precision) : precision));
+		};
+		return shift(Math.round(shift(number, precision, false)), precision, true);
+	}
+	
+	var matcher = /^!(?:c|convert) ([-]?[\d]+(?:[,\.][\d]+)?|measures|possible) *([^ ]+)?(?: +([^ ]+))?$/;
+	function respond (cmd, msg, responseFunc) {
+		var match = msg.content.match(matcher);
+		var result = "";
+		
+		try {
+			if (match !== null && (match[1] == "measures" || match[1] == "possible")) {
+				if (match[2] == null) {
+					result = "Available categories of measurement are [" + convert().measures().join(", ") + "]";
+				} else {
+					if (convert().measures().includes(match[2])) {
+						result = "Supported units of " + match[2] + " are [" + convert().possibilities(match[2]).join(", ") + "]";
+					} else {
+						result = "Unsupported category. Available categories of measurement are ["  + convert().measures().join(", ") + "]";
+					}					
+				}
+			} else if (match === null || typeof match[1] == "undefined" || isNaN(match[1] = parseFloat(match[1].replace(",",".")))) {
+				result = "Usage: !convert # sourceUnit destUnit | !convert measures | !convert possible <measure>";
+			} else {
+				if (convert().possibilities().includes(match[2])) {
+					if (convert().from(match[2]).possibilities().includes(match[3])) {
+						result = round(match[1], 2) + " " + convert().describe(match[2]).plural + " | " + round(convert(match[1]).from(match[2]).to(match[3]), 2) + " " + convert().describe(match[3]).plural + " | possible [" + convert().possibilities(convert().describe(match[2]).measure).join(", ") + "]";
+					} else {
+						let measure = convert().describe(match[2]).measure;
+						if (match[3] === undefined) {
+							let best = convert(match[1]).from(match[2]).toBest({ exclude: [match[2]] });
+							result = round(match[1], 2) + " " + convert().describe(match[2]).plural + " | " + round(best.val, 2) + " " + best.plural + " | auto from [" + convert().possibilities(measure).join(", ") + "]";
+						} else {
+							result = "Incompatible conversion. Supported units of " + measure + " are [" + convert().possibilities(measure).join(", ") + "]";
+						}
+					}
+				} else {
+					result = "Unsupported unit - " + match[2];
+				}
+			}
+		} catch (e) {
+			result = e.message;
+		}
+		
+		responseFunc(msg.channel.id, result);
+	}
+	
+	return {"commands": commands, "respond": respond};
+})();
+module.exports = converter;
