@@ -5,10 +5,13 @@
   "description": "it's a bot that's ok",
   "main": "okbot.js",
   "dependencies": {
-    "convert-units": "^2.3.4",
-    "eris": "^0.8.1"
+    "eris": "^0.8.6",
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "axios": "^0.18.0",
+    "convert-units": "^2.3.4",
+    "warframe-worldstate-parser": "^2.0.2"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
