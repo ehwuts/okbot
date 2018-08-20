@@ -1,7 +1,9 @@
 
 var diceroller = {
-	commands : ["r", "roll"],
+	commands : ["r", "roll", "r2"],
 	rollmatcher : /^!r(?:oll)? ([0-9]*)d([0-9]+)(?: *(\+|\-) *([0-9]+))?/,
+	rollmatcher2 : /!r2 (?:(.+)= ?)?((?:(?:[+-]? ?)(?:(?:\d+)?d)?\d+ ?)+)/i,
+	rollmatcher2b : /(?:([+-]?) ?)(?:(\d+)?(d))?(\d+)/mgi,
 	sadrandint : function (min, max) {
 		return Math.floor(Math.random() * (max - min)) + min;
 	},
@@ -10,36 +12,78 @@ var diceroller = {
 		else return 1;
 	},
 	respond : function (cmd, msg, responseFunc) {
-		var match = msg.content.toLowerCase().match(this.rollmatcher);
-		if (match !== null) {
-			var count = (match[1]?match[1]:1)|0;
-			var size = match[2]|0;
-			var offset = (match[4]?match[4]:0)|0;
-			if (match[3] === "-") offset = 0 - offset;
-			var results = [];
-			
-			if (count > 50) {
-				results.push = (v) => {};
-				results.join = (v) => { return "<lots>"; };
-				results.sort = (v) => {};
-			}
-			
-			var result = 0;
-			var i = 0;
-			while (i < count) {
-				var j = this.sadrandint(1, size + 1);
-				result += j;
-				results.push(j);
+		if (cmd[1] == 'r2') {
+			var v = msg.content.toLowerCase().match(this.rollmatcher2);
+			if (v !== null) {
+				var out1 = 'Rolling';
+				if (v[1]) out1 += ' **' + v[1].trim() + '**';;
+				out1 += ': ' + v[2];
 				
-				++i;
+				var out2 = '';
+				var sum = 0;
+				var match2 = null;
+				this.rollmatcher2b.lastIndex = 0;
+				while (match2 = this.rollmatcher2b.exec(v[2])) {
+					let part1 = (match2[1] == '-'?'-':'+');
+					let part4 = match2[4]|0;
+					if (match2[3] !== 'd') {
+						out2 += part1 + ' ' + part4 + ' ';
+						sum = (part1 == '-'? sum - part4:sum + part4);
+					} else {
+						let part2 = (match2[2]?match2[2]|0:1);
+						let rollsum = 0;
+						if (out2.length || part1 == '-') out2 += part1 + ' (';
+						else out2 += '(';
+						for (let i = 0; i < part2; i++) {
+							let j = this.sadrandint(1, part4 + 1);
+							rollsum += j;
+							if (part2 <= 10) out2 += j + ', ';
+						}
+						sum = (part1 == '-'? sum - rollsum:sum + rollsum);
+						if (part2 > 10) out2 += '*' + rollsum + '\**';
+						else out2 = out2.substr(0, out2.length - 2);
+						out2 += ') ';
+					}
+				}
+				
+				responseFunc(msg.channel.id, out1 + ' ⇒' + out2 + '⇒ **' + sum + '**');
+			} else {
+				responseFunc(msg.channel.id, 'Usage: !r2 [label=] [+-] #d# (OR) # [+ ...]')
 			}
-			
-			result += offset;
-			results.sort(this.cmp);
-			
-			var outstring = "Rolled **" + result + "** for " + msg.author.username;
-			outstring += " (" + count + "d" + size + (offset!==0?(offset < 0?"":"+")+offset:"") + ": " + results.join(",") + ")";
-			responseFunc(msg.channel.id, outstring);
+		} else {
+			var match = msg.content.toLowerCase().match(this.rollmatcher);
+			if (match !== null) {
+				var count = (match[1]?match[1]:1)|0;
+				var size = match[2]|0;
+				var offset = (match[4]?match[4]:0)|0;
+				if (match[3] === "-") offset = 0 - offset;
+				var results = [];
+				
+				if (count > 50) {
+					results.push = (v) => {};
+					results.join = (v) => { return "<lots>"; };
+					results.sort = (v) => {};
+				}
+				
+				var result = 0;
+				var i = 0;
+				while (i < count) {
+					var j = this.sadrandint(1, size + 1);
+					result += j;
+					results.push(j);
+					
+					++i;
+				}
+				
+				result += offset;
+				results.sort(this.cmp);
+				
+				var outstring = "Rolled **" + result + "** for " + msg.author.username;
+				outstring += " (" + count + "d" + size + (offset!==0?(offset < 0?"":"+")+offset:"") + ": " + results.join(",") + ")";
+				responseFunc(msg.channel.id, outstring);
+			} else {
+				console.log(JSON.stringify(cmd));
+			}
 		}
 	}
 };
