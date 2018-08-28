@@ -1,7 +1,7 @@
 var pingpong = {
 	commands : ["pong", "ping"],
 	lastpong : 0,
-	sadtimeout : 30000,
+	sadtimeout : 90000,
 
 	respond : function (cmd, msg, responseFunc) {
 		if (msg.content.toLowerCase() === "!pong") {
