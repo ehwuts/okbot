@@ -1,0 +1,246 @@
+/* TODO 
+make deleting expired alert messages actually work
+per-channel configs
+individual user configs for notification of blueprints/invasion parts?
+*/
+
+var warframe_alerts = (function() {
+	var dependencies = {
+		axios: require('axios'), 
+		worldstate: require('warframe-worldstate-parser')
+	};
+	
+	var	config = {
+		wanted : ['catalyst', 'reactor', 'forma', 'exilus', 'nitain', 'helmet', 'aura', 'cryotic', 'kavatGene', 'kubrowEgg', 'riven'],
+		wantedHelmets : ['Revenant', 'Vlad'],
+		reup : 60000
+	};
+	var data = {
+		alerts: {}, 
+		invasions: {}, 
+		channels: {}, 
+		sortieDesc: ''
+	};
+	var respondFunc = undefined;
+	
+	
+	function describeSortie(sortie) {
+		var result = sortie.boss + ' (' + sortie.faction + ')';
+		for (let i = 0; i < 3; i++) {
+			let modifier = sortie.variants[i].modifier;
+			let p = modifier.indexOf(': ');
+			if (p != -1) {
+				modifier = modifier.substring(p+2);
+			}
+			result += "\n" + sortie.variants[i].missionType + ' | ' + modifier + ' | ' + sortie.variants[i].node;
+		}
+		return result;
+	}
+	
+	function rewardHelmetCheck(a) {
+		for (let i = 0; i < config.wantedHelmets.length; i++) {
+			if (a.mission.reward.itemString.toLowerCase().includes(config.wantedHelmets[i].toLowerCase())) return true;
+		}
+		return false;
+	}
+	
+	function rewardCheck(a) {
+		for (let i = 0; i < a.rewardTypes.length; i++) {
+			if (a.rewardTypes[i] == 'helmet' && !rewardHelmetCheck(a)) {
+				a.rewardTypes.splice(i, 1);
+				continue;
+			}
+			if (config.wanted.includes(a.rewardTypes[i])) return true;
+		}	
+		return false;
+	}
+	
+	function describeAlert(a) {
+		return a.mission.reward + ' | ' + a.eta + ' | ' + a.mission.type + ' (' + a.mission.faction + ')';
+	}
+	
+	function describeInvasion (a) {
+		return (a.vsInfestation?a.defenderReward:a.attackerReward + '/' + a.defenderReward) + ' | ' + a.eta + '* | Invasion ' + a.node.substr(a.node.indexOf('(')) + '';
+	}
+	
+	function checkDescribe (a) {
+		if (rewardCheck(a)) {
+			if (a.constructor.name == 'Invasion') {
+				return describeInvasion(a);
+			} else {
+				return describeAlert(a);
+			}
+		}
+		return null;
+	}
+	
+	function doTickFunc() {
+		dependencies.axios.get('http://content.warframe.com/dynamic/worldState.php')
+		.then(response => {
+			const ws = new dependencies.worldstate(JSON.stringify(response.data));
+			data.sortieDesc = describeSortie(ws.sortie);
+			
+			{
+				let alert_ids = [];
+				for (let i = 0; i < ws.alerts.length; i++) {
+					if (!ws.alerts[i].completed) alert_ids.push(ws.alerts[i].id);
+				}
+				
+				let k = Object.keys(data.alerts);
+				for (let i = 0; i < k.length; i++) {
+					if (!alert_ids.includes(k[i])) {
+						let k2 = Object.keys(data.alerts[k[i]]);
+						for (let j = 0; j < k2.length; j++) {
+							data.alerts[k[i]][k2[j]].delete();
+							delete (data.alerts[k[i]][k2[j]]);
+						}
+					}
+				}
+			}
+			
+			for (let iAlert = 0; iAlert < ws.alerts.length; iAlert++) {
+				let description = describeAlert(ws.alerts[iAlert]);
+				//console.log(description +' | ' + (!ws.alerts[iAlert].completed?'Active':'Expired') + ' | ' + (rewardCheck(ws.alerts[iAlert].rewardTypes)?'Wanted':'Unwanted'));
+				if (!ws.alerts[iAlert].completed) {
+					if (!data.alerts[ws.alerts[iAlert].id]) {
+						data.alerts[ws.alerts[iAlert].id] = {};
+					}
+					let channels = Object.keys(data.channels);
+					for (let iChan = 0; iChan < channels.length; iChan++) {
+						if (!data.alerts[ws.alerts[iAlert].id][channels[iChan]] && rewardCheck(ws.alerts[iAlert])) {
+							data.alerts[ws.alerts[iAlert].id][channels[iChan]] = respondFunc(channels[iChan], description);
+						}
+					}
+				}
+			}
+			
+			{
+				let invasion_ids = [];
+				for (let i = 0; i < ws.invasions.length; i++) {
+					if (!ws.invasions[i].completed) invasion_ids.push(ws.invasions[i].id);
+				}
+				
+				let k = Object.keys(data.invasions);
+				for (let i = 0; i < k.length; i++) {
+					if (!invasion_ids.includes(k[i])) {
+						let k2 = Object.keys(data.invasions[k[i]]);
+						for (let j = 0; j < k2.length; j++) {
+							data.invasions[k[i]][k2[j]].delete();
+							delete (data.invasions[k[i]][k2[j]]);
+						}
+					}
+				}
+			}
+			
+			for (let iInvasion = 0; iInvasion < ws.invasions.length; iInvasion++) {
+				let description = describeInvasion(ws.invasions[iInvasion]);
+				//console.log(description +' | ' + (!ws.invasions[iInvasion].completed?'Active':'Expired') + ' | ' + (rewardCheck(ws.invasions[iInvasion].rewardTypes)?'Wanted':'Unwanted'));
+				if (!ws.invasions[iInvasion].completed) {
+					if (!data.invasions[ws.invasions[iInvasion].id]) {
+						data.invasions[ws.invasions[iInvasion].id] = {};
+					}
+					let channels = Object.keys(data.channels);
+					for (let iChan = 0; iChan < channels.length; iChan++) {
+						if (!data.invasions[ws.invasions[iInvasion].id][channels[iChan]] && rewardCheck(ws.invasions[iInvasion])) {
+							data.invasions[ws.invasions[iInvasion].id][channels[iChan]] = respondFunc(channels[iChan], description);
+						}
+					}
+				}
+			}
+			
+		})
+		.catch(error => {
+			console.log('Error fetching/parsing warframe worldstate. ' + error.message);
+			console.log(error.stack);
+		});
+	}
+	/*
+	poll : function(channel, responseFunc) {
+		this.axios.get('http://content.warframe.com/dynamic/worldState.php')
+		.then(response => {
+			const ws = new this.WorldState(JSON.stringify(response.data));
+			
+			let data = {};
+			var i;
+			for (i = 0; i < ws.alerts.length; i++) {
+				let t = this.checkDescribe(ws.alerts[i]);
+				if (t) data[ws.alerts[i].id] = t;
+			}
+			for (i = 0; i < ws.invasions.length; i++) {
+				if (!ws.invasions[i].completed) {
+					let t = this.checkDescribe(ws.invasions[i]);
+					if (t) data[ws.alerts[i].id] = t;
+				}
+			}
+			i = 0;
+			while (i < this.data[channel.id].extant.length) {
+				if (!data.hasOwnProperty(this.data[channel.id].extant[i].wfid)) {
+					this.data[channel.id].extant[i].msg.delete('expired');
+					this.data[channel.id].extant[i].splice(i, 1);
+					continue;
+				} else {
+					delete data[this.data[channel.id].extant[i].wfid];
+				}
+				i++;
+			}
+		})
+		.catch(error => {
+			console.log(error);
+		});		
+	},
+	*/
+	var ticker = setInterval(doTickFunc, config.reup);
+	doTickFunc();
+	
+	var regexRespond = /^!wf(?: ([\w]+))?/i;
+	
+	var obj = {
+		commands : ['wf'],
+		respond : function (cmd, msg, responseFunc) {			
+			if (respondFunc === undefined) {
+				respondFunc = responseFunc;
+			}
+			cmd = msg.content.toLowerCase().match(regexRespond);
+			if (cmd) {
+				switch (cmd[1]) {
+					case 'start':
+						if (data.channels[msg.channel.id]) {
+							responseFunc(msg.channel.id, 'Alert tracking is already active.');
+						} else {
+							data.channels[msg.channel.id] = true;
+							responseFunc(msg.channel.id, 'Alert tracking is now active.');
+						}						
+						break;
+					case 'stop':
+						if (data.channels[msg.channel.id]) {
+							delete (data.channels[msg.channel.id]);
+							responseFunc(msg.channel.id, 'Alert tracking is now inactive.');
+						} else {
+							responseFunc(msg.channel.id, 'Alert tracking is already inactive.');
+						}
+						break;
+					case 'sortie':
+						if (data.sortieDesc) {
+							responseFunc(msg.channel.id, data.sortieDesc);
+						} else {
+							responseFunc(msg.channel.id, 'Sortie data has not yet been retrieved. Please try again after ' + (config.reup / 1000) + ' seconds.');
+						}
+						break;
+					case 'status':
+						if (data.channels[msg.channel.id]) {
+							responseFunc(msg.channel.id, 'Alert tracking is currently active.' + "\n" + 'Logging: ' + config.wanted.join(', '));
+						} else {						
+							responseFunc(msg.channel.id, 'Alert tracking is currently inactive.');
+						}
+						break;
+					default:
+						responseFunc(msg.channel.id, 'Usage: !wf [help|status|start|stop|sortie]');
+				}
+			}
+		}
+	};	
+	
+	return obj;
+})();
+
+module.exports = warframe_alerts;

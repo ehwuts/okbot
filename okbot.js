@@ -48,7 +48,7 @@ for (let prop in modules) {
 }
 
 var responseFunc = (id, txt) => {
-	discord.createMessage(id, txt);
+	return discord.createMessage(id, txt);
 };
 
 /* End Module Registration */
