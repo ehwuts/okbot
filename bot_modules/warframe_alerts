@@ -1,6 +1,4 @@
 /* TODO 
-make invasions update with a useful ETA instead of the infinity they start with
-per-channel configs
 individual user configs for notification of blueprints/invasion parts?
 */
 
@@ -13,7 +11,7 @@ var warframe_alerts = (function() {
 	var	config = {
 		wanted : ['catalyst', 'reactor', 'forma', 'exilus', 'nitain', 'helmet', 'aura', 'cryotic', 'kavatGene', 'kubrowEgg', 'riven'],
 		wantedHelmets : ['Revenant', 'Vlad'],
-		reup : 60000
+		reup : 120000
 	};
 	var data = {
 		alerts: {}, 
@@ -56,11 +54,11 @@ var warframe_alerts = (function() {
 	}
 	
 	function describeAlert(a) {
-		return a.mission.reward + ' | ' + a.eta + ' | ' + (a.mission.archwingRequired && (!a.mission.node.includes('Uranus') || a.mission.node == 'Caelus (Uranus)')?'Archwing ':'') + a.mission.type + ' (' + a.mission.faction + ')';
+		return a.mission.reward + ' | ' + a.eta + ' | ' + (a.mission.archwingRequired && (!a.mission.node.includes('Uranus') || a.mission.node == 'Caelus (Uranus)')?'Archwing ':'') +  a.mission.type + ' (' + a.mission.faction + ')';
 	}
 	
 	function describeInvasion (a) {
-		return (a.vsInfestation?a.defenderReward:a.attackerReward + '/' + a.defenderReward) + ' | ' + a.eta + '* | Invasion ' + a.node.substr(a.node.indexOf('(')) + '';
+		return (a.vsInfestation?a.defenderReward:a.attackerReward + '/' + a.defenderReward) + ' | Invasion ' + a.node.substr(a.node.indexOf('(')) + ' | Est. ' + (new Date(Date.now() + Math.floor(a.getRemainingTime())).toLocaleString('en-US', {timeZone:'America/Los_Angeles', hour12: false})) + ' PT' ;
 	}
 	
 	function checkDescribe (a) {
@@ -157,7 +155,9 @@ var warframe_alerts = (function() {
 					}
 					let channels = Object.keys(data.channels);
 					for (let iChan = 0; iChan < channels.length; iChan++) {
-						if (!data.invasions[ws.invasions[iInvasion].id][channels[iChan]] && rewardCheck(ws.invasions[iInvasion])) {
+						if (data.invasions[ws.invasions[iInvasion].id][channels[iChan]]) {
+							editMessage(data.invasions[ws.invasions[iInvasion].id][channels[iChan]], description);
+						} else if (!data.invasions[ws.invasions[iInvasion].id][channels[iChan]] && rewardCheck(ws.invasions[iInvasion])) {
 							data.invasions[ws.invasions[iInvasion].id][channels[iChan]] = respondFunc(channels[iChan], description);
 						}
 					}
