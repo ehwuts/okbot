@@ -1,5 +1,5 @@
 /* TODO 
-make deleting expired alert messages actually work
+make invasions update with a useful ETA instead of the infinity they start with
 per-channel configs
 individual user configs for notification of blueprints/invasion parts?
 */
@@ -56,7 +56,7 @@ var warframe_alerts = (function() {
 	}
 	
 	function describeAlert(a) {
-		return a.mission.reward + ' | ' + a.eta + ' | ' + a.mission.type + ' (' + a.mission.faction + ')';
+		return a.mission.reward + ' | ' + a.eta + ' | ' + (a.mission.archwingRequired && (!a.mission.node.includes('Uranus') || a.mission.node == 'Caelus (Uranus)')?'Archwing ':'') + a.mission.type + ' (' + a.mission.faction + ')';
 	}
 	
 	function describeInvasion (a) {
@@ -72,6 +72,22 @@ var warframe_alerts = (function() {
 			}
 		}
 		return null;
+	}
+	
+	function deleteMessage(mixedMessage) {
+		if (mixedMessage.constructor.name == 'Promise') {
+			mixedMessage.then((r) => { r.delete(); });
+		} else {
+			mixedMessage.delete();
+		}
+	}
+	
+	function editMessage(mixedMessage, textNew) {
+		if (mixedMessage.constructor.name == 'Promise') {
+			mixedMessage = mixedMessage.then((r) => { r.edit(textNew); return new Promise((k) => {k(r);}); });
+		} else {
+			mixedMessage = mixedMessage.edit(textNew);
+		}		
 	}
 	
 	function doTickFunc() {
@@ -91,7 +107,7 @@ var warframe_alerts = (function() {
 					if (!alert_ids.includes(k[i])) {
 						let k2 = Object.keys(data.alerts[k[i]]);
 						for (let j = 0; j < k2.length; j++) {
-							data.alerts[k[i]][k2[j]].delete();
+							deleteMessage(data.alerts[k[i]][k2[j]]);
 							delete (data.alerts[k[i]][k2[j]]);
 						}
 					}
@@ -125,7 +141,7 @@ var warframe_alerts = (function() {
 					if (!invasion_ids.includes(k[i])) {
 						let k2 = Object.keys(data.invasions[k[i]]);
 						for (let j = 0; j < k2.length; j++) {
-							data.invasions[k[i]][k2[j]].delete();
+							deleteMessage(data.invasions[k[i]][k2[j]]);
 							delete (data.invasions[k[i]][k2[j]]);
 						}
 					}
