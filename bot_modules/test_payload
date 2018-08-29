@@ -1,0 +1,34 @@
+var test_payload = (function () {	
+	function getRandomResponse() {
+		var responses = [
+			'test',
+			'Test.',
+			'TEST',
+			'hi',
+			'nou',
+			'wheeeeeee',
+			'Ping!',
+			'bonk',
+			'(╯°□°）╯︵ ┻━┻',
+			'AAaiiee',
+			'Goodbye.'
+		];
+		
+		function sadrandint(min, max) {
+			return Math.floor(Math.random() * (max - min)) + min;
+		}
+		
+		return responses[sadrandint(0, responses.length)];
+	}
+	
+	
+	let obj = {	
+		deploy : function (id, responseFunc) {
+			responseFunc(id, getRandomResponse());
+		}
+	}
+	
+	return obj;
+})();
+
+module.exports = test_payload;
