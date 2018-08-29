@@ -2,6 +2,17 @@ simple discord bot that does some stuff
 
 dependencies:
 	eris
+	
+optional dependencies:
+	axios (module: warframe_alerts)
+	warframe-worldstate-parser (module: warframe_alerts)
+	convert-units (module: converter)
 
-license:
+main license:
 	The Unlicense
+	
+module-specific licenses:
+	converter:
+		until such time as the snazzy rounding function 
+		is removed, the converter module is effectively
+		restricted to CC-BY-SA 2.5
