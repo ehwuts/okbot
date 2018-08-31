@@ -23,16 +23,19 @@ var warframe_alerts = (function() {
 	
 	
 	function describeSortie(sortie) {
-		var result = sortie.boss + ' (' + sortie.faction + ')';
-		for (let i = 0; i < 3; i++) {
-			let modifier = sortie.variants[i].modifier;
-			let p = modifier.indexOf(': ');
-			if (p != -1) {
-				modifier = modifier.substring(p+2);
+		if (sortie) {
+			var result = sortie.boss + ' (' + sortie.faction + ')';
+			for (let i = 0; i < 3; i++) {
+				let modifier = sortie.variants[i].modifier;
+				let p = modifier.indexOf(': ');
+				if (p != -1) {
+					modifier = modifier.substring(p+2);
+				}
+				result += "\n" + sortie.variants[i].missionType + ' | ' + modifier + ' | ' + sortie.variants[i].node;
 			}
-			result += "\n" + sortie.variants[i].missionType + ' | ' + modifier + ' | ' + sortie.variants[i].node;
+			return result;
 		}
-		return result;
+		return 'Sortie data missing from worldstate.';
 	}
 	
 	function rewardHelmetCheck(a) {
@@ -92,78 +95,87 @@ var warframe_alerts = (function() {
 		dependencies.axios.get('http://content.warframe.com/dynamic/worldState.php')
 		.then(response => {
 			const ws = new dependencies.worldstate(JSON.stringify(response.data));
+			try {
+				{
+					let alert_ids = [];
+					for (let i = 0; i < ws.alerts.length; i++) {
+						if (!ws.alerts[i].completed) alert_ids.push(ws.alerts[i].id);
+					}
+					
+					let k = Object.keys(data.alerts);
+					for (let i = 0; i < k.length; i++) {
+						if (!alert_ids.includes(k[i])) {
+							let k2 = Object.keys(data.alerts[k[i]]);
+							for (let j = 0; j < k2.length; j++) {
+								deleteMessage(data.alerts[k[i]][k2[j]]);
+								delete (data.alerts[k[i]][k2[j]]);
+							}
+						}
+					}
+				}
+				
+				for (let iAlert = 0; iAlert < ws.alerts.length; iAlert++) {
+					let description = describeAlert(ws.alerts[iAlert]);
+					//console.log(description +' | ' + (!ws.alerts[iAlert].completed?'Active':'Expired') + ' | ' + (rewardCheck(ws.alerts[iAlert].rewardTypes)?'Wanted':'Unwanted'));
+					if (!ws.alerts[iAlert].completed) {
+						if (!data.alerts[ws.alerts[iAlert].id]) {
+							data.alerts[ws.alerts[iAlert].id] = {};
+						}
+						let channels = Object.keys(data.channels);
+						for (let iChan = 0; iChan < channels.length; iChan++) {
+							if (!data.alerts[ws.alerts[iAlert].id][channels[iChan]] && rewardCheck(ws.alerts[iAlert])) {
+								data.alerts[ws.alerts[iAlert].id][channels[iChan]] = respondFunc(channels[iChan], description);
+							}
+						}
+					}
+				}
+			} catch (e) {
+				console.log('Alert handling error: ' + e);
+				console.log(e.stack);
+			}
+			
+			try {
+				{
+					let invasion_ids = [];
+					for (let i = 0; i < ws.invasions.length; i++) {
+						if (!ws.invasions[i].completed) invasion_ids.push(ws.invasions[i].id);
+					}
+					
+					let k = Object.keys(data.invasions);
+					for (let i = 0; i < k.length; i++) {
+						if (!invasion_ids.includes(k[i])) {
+							let k2 = Object.keys(data.invasions[k[i]]);
+							for (let j = 0; j < k2.length; j++) {
+								deleteMessage(data.invasions[k[i]][k2[j]]);
+								delete (data.invasions[k[i]][k2[j]]);
+							}
+						}
+					}
+				}
+				
+				for (let iInvasion = 0; iInvasion < ws.invasions.length; iInvasion++) {
+					let description = describeInvasion(ws.invasions[iInvasion]);
+					//console.log(description +' | ' + (!ws.invasions[iInvasion].completed?'Active':'Expired') + ' | ' + (rewardCheck(ws.invasions[iInvasion].rewardTypes)?'Wanted':'Unwanted'));
+					if (!ws.invasions[iInvasion].completed) {
+						if (!data.invasions[ws.invasions[iInvasion].id]) {
+							data.invasions[ws.invasions[iInvasion].id] = {};
+						}
+						let channels = Object.keys(data.channels);
+						for (let iChan = 0; iChan < channels.length; iChan++) {
+							if (data.invasions[ws.invasions[iInvasion].id][channels[iChan]]) {
+								editMessage(data.invasions[ws.invasions[iInvasion].id][channels[iChan]], description);
+							} else if (!data.invasions[ws.invasions[iInvasion].id][channels[iChan]] && rewardCheck(ws.invasions[iInvasion])) {
+								data.invasions[ws.invasions[iInvasion].id][channels[iChan]] = respondFunc(channels[iChan], description);
+							}
+						}
+					}
+				}
+			} catch (e) {
+				console.log('Invasion handling error: ' + e);
+				console.log(e.stack);				
+			}
+			
 			data.sortieDesc = describeSortie(ws.sortie);
-			
-			{
-				let alert_ids = [];
-				for (let i = 0; i < ws.alerts.length; i++) {
-					if (!ws.alerts[i].completed) alert_ids.push(ws.alerts[i].id);
-				}
-				
-				let k = Object.keys(data.alerts);
-				for (let i = 0; i < k.length; i++) {
-					if (!alert_ids.includes(k[i])) {
-						let k2 = Object.keys(data.alerts[k[i]]);
-						for (let j = 0; j < k2.length; j++) {
-							deleteMessage(data.alerts[k[i]][k2[j]]);
-							delete (data.alerts[k[i]][k2[j]]);
-						}
-					}
-				}
-			}
-			
-			for (let iAlert = 0; iAlert < ws.alerts.length; iAlert++) {
-				let description = describeAlert(ws.alerts[iAlert]);
-				//console.log(description +' | ' + (!ws.alerts[iAlert].completed?'Active':'Expired') + ' | ' + (rewardCheck(ws.alerts[iAlert].rewardTypes)?'Wanted':'Unwanted'));
-				if (!ws.alerts[iAlert].completed) {
-					if (!data.alerts[ws.alerts[iAlert].id]) {
-						data.alerts[ws.alerts[iAlert].id] = {};
-					}
-					let channels = Object.keys(data.channels);
-					for (let iChan = 0; iChan < channels.length; iChan++) {
-						if (!data.alerts[ws.alerts[iAlert].id][channels[iChan]] && rewardCheck(ws.alerts[iAlert])) {
-							data.alerts[ws.alerts[iAlert].id][channels[iChan]] = respondFunc(channels[iChan], description);
-						}
-					}
-				}
-			}
-			
-			{
-				let invasion_ids = [];
-				for (let i = 0; i < ws.invasions.length; i++) {
-					if (!ws.invasions[i].completed) invasion_ids.push(ws.invasions[i].id);
-				}
-				
-				let k = Object.keys(data.invasions);
-				for (let i = 0; i < k.length; i++) {
-					if (!invasion_ids.includes(k[i])) {
-						let k2 = Object.keys(data.invasions[k[i]]);
-						for (let j = 0; j < k2.length; j++) {
-							deleteMessage(data.invasions[k[i]][k2[j]]);
-							delete (data.invasions[k[i]][k2[j]]);
-						}
-					}
-				}
-			}
-			
-			for (let iInvasion = 0; iInvasion < ws.invasions.length; iInvasion++) {
-				let description = describeInvasion(ws.invasions[iInvasion]);
-				//console.log(description +' | ' + (!ws.invasions[iInvasion].completed?'Active':'Expired') + ' | ' + (rewardCheck(ws.invasions[iInvasion].rewardTypes)?'Wanted':'Unwanted'));
-				if (!ws.invasions[iInvasion].completed) {
-					if (!data.invasions[ws.invasions[iInvasion].id]) {
-						data.invasions[ws.invasions[iInvasion].id] = {};
-					}
-					let channels = Object.keys(data.channels);
-					for (let iChan = 0; iChan < channels.length; iChan++) {
-						if (data.invasions[ws.invasions[iInvasion].id][channels[iChan]]) {
-							editMessage(data.invasions[ws.invasions[iInvasion].id][channels[iChan]], description);
-						} else if (!data.invasions[ws.invasions[iInvasion].id][channels[iChan]] && rewardCheck(ws.invasions[iInvasion])) {
-							data.invasions[ws.invasions[iInvasion].id][channels[iChan]] = respondFunc(channels[iChan], description);
-						}
-					}
-				}
-			}
-			
 		})
 		.catch(error => {
 			console.log('Error fetching/parsing warframe worldstate. ' + error.message);
