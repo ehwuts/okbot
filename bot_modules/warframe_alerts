@@ -10,7 +10,7 @@ var warframe_alerts = (function() {
 	
 	var	config = {
 		wanted : ['catalyst', 'reactor', 'forma', 'exilus', 'nitain', 'helmet', 'aura', 'cryotic', 'kavatGene', 'kubrowEgg', 'riven'],
-		wantedHelmets : ['Revenant', 'Vlad'],
+		wantedBlueprints : ['Dark Dagger', 'Revenant', 'Vlad'],
 		reup : 120000
 	};
 	var data = {
@@ -38,18 +38,19 @@ var warframe_alerts = (function() {
 		return 'Sortie data missing from worldstate.';
 	}
 	
-	function rewardHelmetCheck(a) {
-		for (let i = 0; i < config.wantedHelmets.length; i++) {
-			if (a.mission.reward.itemString.toLowerCase().includes(config.wantedHelmets[i].toLowerCase())) return true;
+	function rewardBlueprintCheck(a) {
+		for (let i = 0; i < config.wantedBlueprints.length; i++) {
+			if (a.mission.reward.itemString.toLowerCase().includes(config.wantedBlueprints[i].toLowerCase())) return true;
 		}
 		return false;
 	}
 	
 	function rewardCheck(a) {
 		for (let i = 0; i < a.rewardTypes.length; i++) {
-			if (a.rewardTypes[i] == 'helmet' && !rewardHelmetCheck(a)) {
-				a.rewardTypes.splice(i, 1);
-				continue;
+			if (config.wantedBlueprints) {
+				if (rewardBlueprintCheck(a)) {
+					return true;
+				}
 			}
 			if (config.wanted.includes(a.rewardTypes[i])) return true;
 		}	
