@@ -82,7 +82,7 @@ var diceroller = {
 				outstring += " (" + count + "d" + size + (offset!==0?(offset < 0?"":"+")+offset:"") + ": " + results.join(",") + ")";
 				responseFunc(msg.channel.id, outstring);
 			} else {
-				console.log(JSON.stringify(cmd));
+				//console.log(JSON.stringify(cmd));
 			}
 		}
 	}
