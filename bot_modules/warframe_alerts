@@ -9,8 +9,8 @@ var warframe_alerts = (function() {
 	};
 	
 	var	config = {
-		wanted : ['catalyst', 'reactor', 'forma', 'exilus', 'nitain', 'helmet', 'aura', 'cryotic', 'kavatGene', 'kubrowEgg', 'riven'],
-		wantedBlueprints : ['Dark Dagger', 'Revenant', 'Vlad'],
+		wanted : ['catalyst', 'reactor', 'forma', 'exilus', 'nitain', 'kavatGene', 'riven'],
+		wantedBlueprints : ['Garuda', "Baruuk", "Titania", "Nidus"],
 		reup : 120000
 	};
 	var data = {
@@ -20,7 +20,6 @@ var warframe_alerts = (function() {
 		sortieDesc: ''
 	};
 	var respondFunc = undefined;
-	
 	
 	function describeSortie(sortie) {
 		if (sortie) {
@@ -39,19 +38,24 @@ var warframe_alerts = (function() {
 	}
 	
 	function rewardBlueprintCheck(a) {
-		for (let i = 0; i < config.wantedBlueprints.length; i++) {
-			if (a.mission.reward.itemString.toLowerCase().includes(config.wantedBlueprints[i].toLowerCase())) return true;
+		try {
+			for (let i = 0; i < config.wantedBlueprints.length; i++) {
+				if (a.mission.reward.itemString.toLowerCase().includes(config.wantedBlueprints[i].toLowerCase())) return true;
+			}
+		} catch (e) {
+			console.log('wf-bpc: ' + e);
+			console.log(a);
 		}
 		return false;
 	}
 	
 	function rewardCheck(a) {
-		for (let i = 0; i < a.rewardTypes.length; i++) {
-			if (config.wantedBlueprints) {
-				if (rewardBlueprintCheck(a)) {
-					return true;
-				}
+		if (config.wantedBlueprints && a.constructor.name !== 'Invasion') {
+			if (rewardBlueprintCheck(a)) {
+				return true;
 			}
+		}
+		for (let i = 0; i < a.rewardTypes.length; i++) {
 			if (config.wanted.includes(a.rewardTypes[i])) return true;
 		}	
 		return false;
@@ -179,7 +183,7 @@ var warframe_alerts = (function() {
 			data.sortieDesc = describeSortie(ws.sortie);
 		})
 		.catch(error => {
-			console.log('Error fetching/parsing warframe worldstate. ' + error.message);
+			console.log((new Date(Date.now()).toLocaleString('en-US', {timeZone:'America/Los_Angeles', hour12: false})) + ' - Error fetching/parsing warframe worldstate.');
 			console.log(error.stack);
 		});
 	}
@@ -257,13 +261,29 @@ var warframe_alerts = (function() {
 						break;
 					case 'status':
 						if (data.channels[msg.channel.id]) {
-							responseFunc(msg.channel.id, 'Alert tracking is currently active.' + "\n" + 'Logging: ' + config.wanted.join(', '));
+							let description = 'Alert tracking is currently active.';
+							if (config.wanted.length > 0) {
+								description += "\n" + 'Logging categories: ' + config.wanted.join(', ');
+							}
+							if (config.wantedBlueprints.length > 0) {
+								description += "\n" + 'Logging blueprints: ' + config.wantedBlueprints.join(', ');
+							}
+							if (config.wanted.length < 1 && config.wantedBlueprints.length < 1) {
+								description += "\n" + 'Currently logging nothing.';
+							}
+							responseFunc(msg.channel.id, description);
 						} else {						
 							responseFunc(msg.channel.id, 'Alert tracking is currently inactive.');
 						}
 						break;
+					case 'add':
+					case 'addbp':
+						break;
+					case 'remove':
+					case 'removebp':
+						break;
 					default:
-						responseFunc(msg.channel.id, 'Usage: !wf [help|status|start|stop|sortie]');
+						responseFunc(msg.channel.id, 'Usage: !wf [help|status|start|stop|sortie|add|remove|addbp|removebp]');
 				}
 			}
 		}
